@@ -6,6 +6,8 @@ var songs = [
   "song1.mp3"
 ];
 
+var clock, renderer, scene, cubes = [];
+
 function pickSong() {
   return songs[Math.floor(Math.random()*songs.length)];
 }
@@ -48,8 +50,6 @@ function visualize() {
   drawSpectrum3D(array);
 }
 
-var clock, renderer, scene, cubes = [];
-
 function init() {
   loadSound();
 
@@ -86,6 +86,8 @@ function init() {
   backLight.position.y = 50;
   backLight.position.z = -130;
   scene.add(backLight);
+
+  animate();
 }
 
 function drawSpectrum3D(array) {
@@ -97,7 +99,6 @@ function drawSpectrum3D(array) {
       cubes[i].scale.z = value/2;
     }
   }
-  renderer.render(scene, camera);
 }
 
 function animate() {
@@ -112,4 +113,3 @@ function animate() {
 }
 
 init();
-animate();
