@@ -1,27 +1,47 @@
-var context = new webkitAudioContext();
+var context = new webkitAudioContext()
+  , FFT = 512
+  , songs = ["song1.mp3"]
+  , clock, renderer, scene, cubes = [];
 
-var FFT = 512;
-
-var songs = [
-  "song1.mp3"
-];
-
-var clock, renderer, scene, cubes = [];
-
+/**
+ * Pick a random song from the songs array.
+ */
 function pickSong() {
   return songs[Math.floor(Math.random()*songs.length)];
 }
 
+/**
+ * Wrapper around XMLHttpRequest
+ */
+function request(url, opts, fn) {
+  var defaults = {
+    method: "GET",
+    responseType: "arraybuffer"
+  };
+
+  for (prop in defaults) {
+    opts[prop] = opts[prop] || defaults[prop];
+  }
+
+  var xhr = new XMLHttpRequest();
+  xhr.open(opts.method, url);
+  xhr.responseType = opts.responseType;
+  xhr.addEventListener("load", function() {
+    fn(xhr.response);
+  });
+  xhr.send();
+}
+
+/**
+ * Load the song data and when loaded, decode the audio data
+ * and start the visualization.
+ */
 function loadSound() {
-  var request = new XMLHttpRequest();
-  request.open("GET", pickSong());
-  request.responseType = "arraybuffer";
-  request.addEventListener("load", function() {
-    context.decodeAudioData(request.response, function(buffer) {
+  request(pickSong(), {}, function(response) {
+    context.decodeAudioData(response, function(buffer) {
       playSound(buffer);
     });
   });
-  request.send();
 }
 
 var node, analyser, source;
@@ -44,12 +64,19 @@ function playSound(buffer) {
   source.noteOn(0);
 }
 
+/**
+ * Visualization callback, called when the analyser has new data.
+ */
 function visualize() {
   var array = new Uint8Array(analyser.frequencyBinCount);
   analyser.getByteFrequencyData(array);
   drawSpectrum3D(array);
 }
 
+/**
+ * Initialize the whole she bang: load the music, create the THREE.js world 
+ * and start the animation.
+ */
 function init() {
   loadSound();
 
@@ -90,6 +117,9 @@ function init() {
   animate();
 }
 
+/**
+ * Updates the visuals to reflect new data from the analyser.
+ */
 function drawSpectrum3D(array) {
   for (var i = 0; i < array.length; ++i) {
     var value = array[i];
@@ -113,3 +143,4 @@ function animate() {
 }
 
 init();
+
