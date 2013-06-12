@@ -1,5 +1,5 @@
-var context = new webkitAudioContext()
-  , FFT = 512
+
+var audioContext = new webkitAudioContext()
   , songs = ["song1.mp3"]
   , clock, renderer, scene, cubes = [];
 
@@ -32,53 +32,51 @@ function request(url, opts, fn) {
   xhr.send();
 }
 
-/**
- * Load the song data and when loaded, decode the audio data
- * and start the visualization.
- */
-function loadSound() {
-  request(pickSong(), {}, function(response) {
-    context.decodeAudioData(response, function(buffer) {
-      playSound(buffer);
+function SoundAnalyzer(audioContext) {
+  this.node = audioContext.createJavaScriptNode(2048, 1, 1);
+  this.analyzer = audioContext.createAnalyser();
+  this.source = audioContext.createBufferSource();
+  this.FFT = 512;
+};
+
+SoundAnalyzer.prototype = {
+  load: function(url) {
+    var self = this;
+    request(url, {}, function(response) {
+      audioContext.decodeAudioData(response, function(buffer) {
+        self.play(buffer);
+      });
     });
-  });
-}
+  },
 
-var node, analyser, source;
+  play: function(buffer) {
+    this.node.connect(audioContext.destination);
+    this.node.onaudioprocess = this.visualize.bind(this);
 
-function playSound(buffer) {
-  node = context.createJavaScriptNode(2048, 1, 1);
-  node.connect(context.destination);
-  node.onaudioprocess = visualize;
+    this.analyzer.smoothingTimeConstant = 0.3;
+    this.analyzer.fftSize = this.FFT;
+    this.analyzer.connect(this.node);
 
-  analyser = context.createAnalyser();
-  analyser.smoothingTimeConstant = 0.3;
-  analyser.fftSize = FFT;
+    this.source.connect(this.analyzer);
+    this.source.connect(audioContext.destination);
+    this.source.buffer = buffer;
+    this.source.noteOn(0);
+  },
 
-  analyser.connect(node);
-
-  source = context.createBufferSource();
-  source.connect(analyser);
-  source.connect(context.destination);
-  source.buffer = buffer;
-  source.noteOn(0);
-}
-
-/**
- * Visualization callback, called when the analyser has new data.
- */
-function visualize() {
-  var array = new Uint8Array(analyser.frequencyBinCount);
-  analyser.getByteFrequencyData(array);
-  drawSpectrum3D(array);
-}
+  visualize: function() {
+    var array = new Uint8Array(this.analyzer.frequencyBinCount);
+    this.analyzer.getByteFrequencyData(array);
+    drawSpectrum3D(array);
+  }
+};
 
 /**
  * Initialize the whole she bang: load the music, create the THREE.js world 
  * and start the animation.
  */
 function init() {
-  loadSound();
+  var sound = new SoundAnalyzer(audioContext);
+  sound.load(pickSong());
 
   clock = new THREE.Clock();
 
@@ -94,7 +92,7 @@ function init() {
   var geometry = new THREE.CubeGeometry(1, 1, 1);
   var material = new THREE.MeshNormalMaterial();
   
-  for (var i = 0; i < FFT/2; ++i) {
+  for (var i = 0; i < sound.FFT/2; ++i) {
     var mesh = new THREE.Mesh(geometry, material);
     mesh.position.set(-100 + i, 0, 0);
     cubes.push(mesh);
@@ -118,7 +116,7 @@ function init() {
 }
 
 /**
- * Updates the visuals to reflect new data from the analyser.
+ * Updates the visuals to reflect new data from the analyzer.
  */
 function drawSpectrum3D(array) {
   for (var i = 0; i < array.length; ++i) {
